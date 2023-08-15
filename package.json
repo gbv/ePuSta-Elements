@@ -1,0 +1,25 @@
+{
+  "name": "epusta_elements",
+  "version": "1.0.0",
+  "description": "Javascript library to get data from ePuSta display them in the website. ",
+  "main": "epusta-elements.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/PaulBorchert/ePuSta_elements.git"
+  },
+  "keywords": [
+    "ePuSta",
+    "javascript",
+    "accessstatistics"
+  ],
+  "author": "Paul Borchert",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/PaulBorchert/ePuSta_elements/issues"
+  },
+  "homepage": "https://github.com/PaulBorchert/ePuSta_elements#readme",
+  "dependencies": { "chart.js": "4.3.3" }
+}
