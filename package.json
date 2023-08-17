@@ -1,5 +1,5 @@
 {
-  "name": "epusta_elements",
+  "name": "epusta_elements.js",
   "version": "1.0.0",
   "description": "Javascript library to get data from ePuSta display them in the website. ",
   "main": "epusta-elements.js",
@@ -16,7 +16,7 @@
     "accessstatistics"
   ],
   "author": "Paul Borchert",
-  "license": "ISC",
+  "license": "GPLV3",
   "bugs": {
     "url": "https://github.com/PaulBorchert/ePuSta_elements/issues"
   },
