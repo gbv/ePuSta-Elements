@@ -1,4 +1,3 @@
-module.exports = ePuStaInline
 //Class ePuStaInline
 
 function ePuStaInline (element,providerurl,epustaid,from,until,tagquery) {
