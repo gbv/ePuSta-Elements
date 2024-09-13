@@ -179,15 +179,6 @@ ePuStaGraph.prototype= {
           //  }
           }
         });
-
-        /*this.barchart = new Morris.Bar({
-          element: "epustaGraphic",
-          data: data,
-          xkey: 'date',
-          ykeys: ['count'],
-          labels: ['Zugriffe'],
-          hideHover:true
-        });*/
         break;
       default:
         this.$element.text("");
