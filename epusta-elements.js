@@ -4,7 +4,7 @@ class ePuStaInline {
   constructor (element,providerurl,epustaid,from,until,tagquery) {
     this.providerurl = providerurl;
     this.epustaid = epustaid;
-    this.$element = $(element);
+    this.element = element;
     this.count = "";
     this.tagquery = tagquery;
     this.state = "";
@@ -17,37 +17,44 @@ class ePuStaInline {
   async requestData() {
     this.state="waiting";
     this.render();
-    $.ajax({
-      method : "GET",
-      url : this.providerurl
-        + "/statistics?identifier="+this.epustaid
-        + "&start_date=" + this.from + "&end_date=" + this.until
-        + "&granularity=" + this._granularity
-        + "&tagquery=" + this.tagquery,
-      dataType : "json",
-      context: this
-      }).done(function(data) {
-        ePuStaInline.receiveData(this, data);
-      }).fail(function(e) {
-        this.state="error";
-        this.errortext="Fehler beim Holen der Daten vom Graphprovider";
-        this.render();
-    });
+    var mythis = this;
+    try { 
+      const response = await fetch(this.providerurl
+    
+            + "/statistics?identifier="+this.epustaid
+            + "&start_date=" + this.from + "&end_date=" + this.until
+            + "&granularity=" + this._granularity
+            + "&tagquery=" + this.tagquery,
+        {
+    	  method: 'get',
+          headers: {
+    	    'Accept': 'application/json',
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+      const data = await response.json(); 
+      ePuStaInline.receiveData(this, data);
+    } catch (error) {
+      this.state="error";
+      this.errortext="Fehler beim Holen der Daten vom Graphprovider";
+      this.render();
+    }
   }
 
   render() {
     switch(this.state) {
       case "error":
-        this.$element.html("<i class='fas fa-exclamation-triangle' data-toggle='tooltip' title='"+this.errortext+"'></i>");
+        this.element.innerHTML="<i class='fas fa-exclamation-triangle' data-toggle='tooltip' title='"+this.errortext+"'></i>";
         break;
       case "waiting":
-        this.$element.html("<i class='fas fa-spinner fa-pulse'></i>");
+        this.element.innerHTML="<i class='fas fa-spinner fa-pulse'></i>";
         break;
       case "success":
-        this.$element.text(this.count);
+        this.element.innerHTML=this.count;
         break;
       default:
-        this.$element.text("");
+        this.element.innerHTML="";
     }
   }
 
@@ -76,16 +83,21 @@ ePuStaInline.receiveData = function(epustainline,json) {
 //Class ePuStaGraph
 
 class ePuStaGraph {
-  constructor (element,providerurl,epustaid,from,until,tagquery,granularity) {
+  constructor (element,providerurl,epustaid,from,until,labelsByTagQuery,granularity) {
     this.providerurl = providerurl;
     this.epustaid = epustaid;
-    this.element = element;
     this.element.epustagraph = this;
-    this.$element = $(element);
+    this.element = element;
     this.state = "";
     this.errortext ="";
     this._granularity = granularity;
-    this.tagquery = tagquery;
+    this._labelsByTagQuery=[];
+    if (typeof(labelsByTagQuery)==='string')
+        this._labelsByTagQuery.push( { label: "Zugriffe", tagquery : labelsByTagQuery} );
+    else 
+    	this._labelsByTagQuery = labelsByTagQuery;
+    //this.tagquery = tagquery;
+    
     this.from = (isNaN(Date.parse(from)) === false) ? from : "auto";
     this.until = (isNaN(Date.parse(until)) === false) ? until : new Date().toJSON().substring(0,10);
     this.data = [];
@@ -103,23 +115,27 @@ class ePuStaGraph {
       this.render();
       var from = this.calculateFrom();
       var until = this.calculateUntil();
+      var ePustaGraph = this;
       
-      $.ajax({
-        method : "GET",
-        url : this.providerurl
-          + "/statistics?identifier="+this.epustaid
-          + "&start_date=" + from + "&end_date=" + until
-          + "&granularity="+this._granularity
-          + "&tagquery="+this.tagquery,
-        dataType : "json",
-        context: this
-        }).done(function(data) {
-          ePuStaGraph.receiveData(this, data);
-        }).fail(function(e) {
-          this.state="error";
-          this.errortext="Error during geting data";
-          this.render();
-      });
+      this._labelsByTagQuery.forEach( function ( labelobject ) {
+        var labeltext = labelobject.label;
+        $.ajax({
+          method : "GET", 
+          url : ePustaGraph.providerurl
+            + "/statistics?identifier="+ePustaGraph.epustaid
+            + "&start_date=" + from + "&end_date=" + until
+            + "&granularity="+ePustaGraph._granularity
+            + "&tagquery="+labelobject.tagquery,
+          dataType : "json",
+          context: ePustaGraph
+          }).done(function(data) {
+            ePuStaGraph.receiveData(ePustaGraph, data, labeltext);
+          }).fail(function(e) {
+            this.state="error";
+            this.errortext="Error during geting data for label" + labeltext;
+            this.render();
+        });
+      })
     }
   }
 
@@ -130,47 +146,54 @@ class ePuStaGraph {
         html+="<i class='fas fa-exclamation-triangle' data-toggle='tooltip' title='"+this.errortext+"'/>";
         html+=this.errortext;
         html+="</div>";
-        this.$element.html(html);
+        this.element.innerHTML=html;
         break;
       case "waiting":
-        this.$element.html("<div style='font-size: 5em;text-align:center;'> <i class='fas fa-spinner fa-pulse'></i> </div>");
+        this.element.innerHTML="<div style='font-size: 5em;text-align:center;'> <i class='fas fa-spinner fa-pulse'></i> </div>";
         break;
       case "success":
-        //this.$element.html(" <div id='epustaGraphic' style='height:80%'> </div> ");
-        //var epustaElement = this;
         this.canvas = document.createElement("canvas");
         this.element.replaceChildren(this.canvas); 
-        var data;
-        switch (this._granularity) {
-          case 'day':
-            data=this.data.day;
-            break;
-          case 'week':
-            data=this.data.week;
-            break;
-          case 'month':
-            data=this.data.month;
-            break;
-          case 'year':
-            data=this.data.year;
-            break;
-        }
-        
-        var count_data = data.map( x => x.count );  
-        var labels_data = data.map (  x => x.date );
-
+                
         if (this.barchart) this.barchart.destroy();
 
+        var datasets = [];
+        var granularity = this._granularity;
+        var labels_data;
+        var epustagraph=this;
+        this.data.forEach( function ( dataobject ) {
+          var data;
+          switch (granularity) {
+            case 'day':
+              data=dataobject.statistics.day;
+              break;
+            case 'week':
+              data=dataobject.statistics.week;
+              break;
+            case 'month':
+              data=dataobject.statistics.month;
+              break;
+            case 'year':
+              data=dataobject.statistics.year;
+              break;
+          }
+          var count_data = data.map( x => x.count );  
+          labels_data = data.map (  x => x.date );
+          var datasetLabel = dataobject.label;
+          var backgroundColor = epustagraph._labelsByTagQuery.find((element) => element.label == datasetLabel).color; 
+          datasets.push({
+              label: datasetLabel,
+              data: count_data,
+              backgroundColor: backgroundColor,
+              borderWidth: 1
+          });
+        });
         this.barchart = new Chart(this.canvas, {
           type: 'bar',
           data: {
-            labels: labels_data,
-            datasets: [{
-              label: 'Volltextzugriffe',
-              data: count_data,
-              borderWidth: 1
-            }]
-          },
+              labels: labels_data,
+              datasets: datasets
+            } ,
           options: {
             responsive: true,
             maintainAspectRatio: false,
@@ -184,7 +207,7 @@ class ePuStaGraph {
 
         break;
       default:
-        this.$element.text("");
+        this.element.innerHTML="";
     }
   }
 
@@ -236,13 +259,18 @@ class ePuStaGraph {
   
 };
 
-ePuStaGraph.receiveData = function(epustagraph,json) {
+ePuStaGraph.receiveData = function(epustagraph, json, labeltext) {
+
   if (json) {
-    epustagraph.data=json.statistics;
-    epustagraph.state="success";
+    epustagraph.data.push({ label: labeltext, statistics: json.statistics}) ;
+    if (epustagraph.data.length == epustagraph._labelsByTagQuery.length &&  epustagraph.state != "error") {
+      epustagraph.state="success";
+    } else {
+    	epustagraph.state="waiting";
+    }
   } else {
     epustagraph.state="error";
-    epustagraph.errortext="No data received";
+    epustagraph.errortext +="No data received for label " + label;
   }
   epustagraph.render();
 };
@@ -250,23 +278,24 @@ ePuStaGraph.receiveData = function(epustagraph,json) {
 // End Class ePuStaGraph
 
 document.addEventListener('DOMContentLoaded', function () {
-  $('[data-epustaelementtype]').each(function(index, element) {
-    var epustaElementtype=$(element).data('epustaelementtype');
-    var epustaProviderurl=$(element).data('epustaproviderurl');
-    var epustaIdentifier=$(element).data('epustaidentifier');
+  //$('[data-epustaelementtype]').each(function(index, element) {
+  document.querySelectorAll("[data-epustaelementtype]").forEach((element, index)=> {
+    var epustaElementtype=element.getAttribute("data-epustaelementtype");
+    var epustaProviderurl=element.getAttribute("data-epustaproviderurl");
+    var epustaIdentifier=element.getAttribute("data-epustaidentifier");
     var epustaTagQuery = "";
     // For backward compatibility
-    var epustaCounttype=$(element).data('epustacounttype');
+    var epustaCounttype=element.getAttribute("data-epustacounttype");
     if (epustaCounttype == "counter") {
     	epustaTagQuery = "-epusta:filter:httpMethod -epusta:filter:httpStatus -filter:30sek:counter3 -filter:robot oas:content:counter"
     } else if (epustaCounttype == "counter_abstract") {
     	epustaTagQuery = "-epusta:filter:httpMethod -epusta:filter:httpStatus -filter:30sek:counter3 -filter:robot oas:content:counter_abstract"
     }
     // End
-    if ($(element).data('epusttagquery')) epustaTagQuery = $(element).data('epustatagquery');
-    var epustaFrom=$(element).data('epustafrom');
-    var epustaUntil=$(element).data('epustauntil');
-    var epustaGranularity=$(element).data('epustagranularity');
+    if (element.getAttribute("data-epusttagquery")) epustaTagQuery = element.getAttribute("data-epustatagquery");
+    var epustaFrom=element.getAttribute("data-epustafrom");
+    var epustaUntil=element.getAttribute("data-epustauntil");
+    var epustaGranularity=element.getAttribute("data-epustagranularity");
     var epustaElement;
     if (epustaElementtype === "ePuStaInline" ) {
       epustaElement = new ePuStaInline(element,epustaProviderurl,epustaIdentifier,epustaFrom,epustaUntil,epustaTagQuery);
