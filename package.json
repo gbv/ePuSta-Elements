@@ -1,6 +1,6 @@
 {
   "name": "epusta_elements.js",
-  "version": "1.0.0",
+  "version": "1.0.3",
   "description": "Javascript library to get data from ePuSta display them in the website. ",
   "main": "epusta-elements.js",
   "scripts": {
