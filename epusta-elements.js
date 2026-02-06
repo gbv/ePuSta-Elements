@@ -86,8 +86,8 @@ class ePuStaGraph {
   constructor (element,providerurl,epustaid,from,until,labelsByTagQuery,granularity) {
     this.providerurl = providerurl;
     this.epustaid = epustaid;
-    this.element.epustagraph = this;
     this.element = element;
+    this.element.epustagraph = this;
     this.state = "";
     this.errortext ="";
     this._granularity = granularity;
