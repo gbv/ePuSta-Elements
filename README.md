@@ -16,8 +16,26 @@ Include the script in your HTML page:
 
 ### Dependencies
 
-- **`ePuStaGraph`** requires [jQuery](https://jquery.com/) and [Chart.js](https://www.chartjs.org/).
+- **`ePuStaGraph`** requires [Chart.js](https://www.chartjs.org/).
 - **`ePuStaInline`** has no external dependencies.
+
+---
+
+## Live Demo
+
+A runnable demo of both classes — each as a JavaScript class and via data attributes — is available under [`example/index.html`](example/index.html):
+
+👉 **https://gbv.github.io/ePuSta-Elements/example/**
+
+The demo has no real ePuSta-Server: it mocks `window.fetch` and returns deterministic example data so the classes can be tried out without a backend.
+
+> To publish the demo, GitHub Pages must be served from the repository root (Settings → Pages → Deploy from a branch → `main` / `/ (root)`). The demo references the library via `../epusta-elements.js`, which only resolves when the whole repo root is published.
+>
+> To run it locally, start a static server from the repo root (ES modules do not load over `file://`):
+> ```bash
+> python3 -m http.server
+> # then open http://localhost:8000/example/
+> ```
 
 ---
 

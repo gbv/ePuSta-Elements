@@ -115,27 +115,33 @@ class ePuStaGraph {
       this.render();
       var from = this.calculateFrom();
       var until = this.calculateUntil();
-      var ePustaGraph = this;
-      
-      this._labelsByTagQuery.forEach( function ( labelobject ) {
-        var labeltext = labelobject.label;
-        $.ajax({
-          method : "GET", 
-          url : ePustaGraph.providerurl
-            + "/statistics?identifier="+ePustaGraph.epustaid
-            + "&start_date=" + from + "&end_date=" + until
-            + "&granularity="+ePustaGraph._granularity
-            + "&tagquery="+labelobject.tagquery,
-          dataType : "json",
-          context: ePustaGraph
-          }).done(function(data) {
-            ePuStaGraph.receiveData(ePustaGraph, data, labeltext);
-          }).fail(function(e) {
-            this.state="error";
-            this.errortext="Error during geting data for label" + labeltext;
-            this.render();
-        });
-      })
+
+      const requests = this._labelsByTagQuery.map(async (labelobject) => {
+        const labeltext = labelobject.label;
+        try {
+          const response = await fetch(
+            this.providerurl
+              + "/statistics?identifier=" + this.epustaid
+              + "&start_date=" + from + "&end_date=" + until
+              + "&granularity=" + this._granularity
+              + "&tagquery=" + labelobject.tagquery,
+            {
+              method: 'get',
+              headers: {
+                'Accept': 'application/json',
+                'Content-Type': 'application/json'
+              }
+            }
+          );
+          const data = await response.json();
+          ePuStaGraph.receiveData(this, data, labeltext);
+        } catch (error) {
+          this.state = "error";
+          this.errortext = "Error during getting data for label " + labeltext;
+          this.render();
+        }
+      });
+      await Promise.all(requests);
     }
   }
 
@@ -292,7 +298,7 @@ document.addEventListener('DOMContentLoaded', function () {
     	epustaTagQuery = "-epusta:filter:httpMethod -epusta:filter:httpStatus -filter:30sek:counter3 -filter:robot oas:content:counter_abstract"
     }
     // End
-    if (element.getAttribute("data-epusttagquery")) epustaTagQuery = element.getAttribute("data-epustatagquery");
+    if (element.getAttribute("data-epustatagquery")) epustaTagQuery = element.getAttribute("data-epustatagquery");
     var epustaFrom=element.getAttribute("data-epustafrom");
     var epustaUntil=element.getAttribute("data-epustauntil");
     var epustaGranularity=element.getAttribute("data-epustagranularity");

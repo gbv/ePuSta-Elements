@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ePuSta Elements — Live Demo</title>
+
+  <!-- Chart.js stellt das globale "Chart" bereit, das ePuStaGraph nutzt -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+
+  <!--
+    fetch-Mock: ersetzt window.fetch, damit die Demo ohne echten ePuSta-Server
+    läuft. Muss VOR dem Modul-Script stehen (klassisches Script läuft synchron,
+    Module sind deferred), damit der Mock installiert ist, bevor requestData()
+    oder die Auto-Initialisierung der Library feuert.
+  -->
+  <script>
+    (function () {
+      // Deterministischer Pseudo-Zufall, abgeleitet aus einem String-Seed,
+      // damit verschiedene tagqueries (= Serien) unterschiedliche Werte ergeben.
+      function seededRandom(seed) {
+        let h = 2166136261 >>> 0;
+        for (let i = 0; i < seed.length; i++) {
+          h = Math.imul(h ^ seed.charCodeAt(i), 16777619);
+        }
+        return function () {
+          h += 0x6D2B79F5;
+          let t = h;
+          t = Math.imul(t ^ (t >>> 15), t | 1);
+          t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+          return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+        };
+      }
+
+      function pad(n) { return n.toString().padStart(2, "0"); }
+      function fmt(d) {
+        return d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate());
+      }
+
+      // Erzeugt Buckets {date, count} zwischen start und end passend zur Granularität.
+      function buildBuckets(granularity, start, end, rand) {
+        const buckets = [];
+        const cursor = new Date(start);
+        let guard = 0;
+        while (cursor <= end && guard < 400) {
+          guard++;
+          const count = Math.floor(rand() * 90) + 10;
+          buckets.push({ date: fmt(cursor), count });
+          switch (granularity) {
+            case "day":   cursor.setDate(cursor.getDate() + 1); break;
+            case "week":  cursor.setDate(cursor.getDate() + 7); break;
+            case "month": cursor.setMonth(cursor.getMonth() + 1); break;
+            case "year":  cursor.setFullYear(cursor.getFullYear() + 1); break;
+            default:      return buckets;
+          }
+        }
+        return buckets;
+      }
+
+      window.fetch = function (url) {
+        const u = new URL(url, window.location.href);
+        const granularity = u.searchParams.get("granularity") || "total";
+        const tagquery = u.searchParams.get("tagquery") || "";
+        const start = new Date(u.searchParams.get("start_date") || "2024-01-01");
+        const end = new Date(u.searchParams.get("end_date") || new Date());
+        const rand = seededRandom(granularity + "|" + tagquery);
+
+        let data;
+        if (granularity === "total") {
+          data = { statistics: { total: Math.floor(rand() * 9000) + 1000 } };
+        } else {
+          data = { statistics: { [granularity]: buildBuckets(granularity, start, end, rand) } };
+        }
+
+        // Kleiner Delay, damit der Lade-Spinner kurz sichtbar wird.
+        return new Promise(function (resolve) {
+          setTimeout(function () {
+            resolve({ ok: true, status: 200, json: async function () { return data; } });
+          }, 500);
+        });
+      };
+    })();
+  </script>
+
+  <!-- Font Awesome für die Spinner-/Fehler-Icons der Klassen -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 880px; margin: 2rem auto; padding: 0 1rem; color: #222; }
+    h1 { margin-bottom: 0.25rem; }
+    .lead { color: #555; margin-top: 0; }
+    section { border: 1px solid #e0e0e0; border-radius: 8px; padding: 1rem 1.25rem; margin: 1.5rem 0; }
+    h2 { margin-top: 0; font-size: 1.15rem; }
+    .count { font-size: 2rem; font-weight: bold; color: #4e79a7; }
+    .chart-box { position: relative; height: 300px; }
+    pre { background: #f6f8fa; border-radius: 6px; padding: 0.75rem; overflow-x: auto; font-size: 0.85rem; }
+    .note { background: #fff8e1; border-left: 4px solid #f0c000; padding: 0.6rem 0.9rem; border-radius: 4px; }
+  </style>
+</head>
+<body>
+  <h1>ePuSta Elements — Live Demo</h1>
+  <p class="lead">Demonstriert <code>ePuStaInline</code> und <code>ePuStaGraph</code> jeweils als JavaScript-Klasse und über data-Attribute.</p>
+
+  <p class="note">
+    ⚠️ Diese Demo hat <strong>keinen echten ePuSta-Server</strong>. <code>window.fetch</code> ist gemockt
+    und liefert deterministische Beispieldaten, damit man die Klassen ohne Backend live ausprobieren kann.
+  </p>
+
+  <!-- 1. ePuStaInline als JavaScript-Klasse -->
+  <section>
+    <h2>ePuStaInline — JavaScript</h2>
+    <p>Gesamtzahl der Zugriffe: <span id="inline-js" class="count"></span></p>
+    <pre>const inline = new ePuStaInline(
+  document.getElementById('inline-js'),
+  'https://epusta.example.org',
+  'oai:example.org:12345',
+  '2022-01-01', '2024-12-31',
+  'oas:content:counter'
+);
+inline.requestData();</pre>
+  </section>
+
+  <!-- 2. ePuStaInline über data-Attribute (Auto-Init durch die Library) -->
+  <section>
+    <h2>ePuStaInline — data-Attribute</h2>
+    <p>Gesamtzahl der Zugriffe:
+      <span class="count"
+        data-epustaelementtype="ePuStaInline"
+        data-epustaproviderurl="https://epusta.example.org"
+        data-epustaidentifier="oai:example.org:67890"
+        data-epustafrom="2022-01-01"
+        data-epustauntil="2024-12-31"
+        data-epustatagquery="oas:content:counter"></span>
+    </p>
+    <pre>&lt;span
+  data-epustaelementtype="ePuStaInline"
+  data-epustaproviderurl="https://epusta.example.org"
+  data-epustaidentifier="oai:example.org:67890"
+  data-epustafrom="2022-01-01"
+  data-epustauntil="2024-12-31"
+  data-epustatagquery="oas:content:counter"&gt;&lt;/span&gt;</pre>
+  </section>
+
+  <!-- 3. ePuStaGraph als JavaScript-Klasse mit mehreren Serien -->
+  <section>
+    <h2>ePuStaGraph — JavaScript (mehrere Serien)</h2>
+    <div class="chart-box"><div id="graph-js" style="height:100%;"></div></div>
+    <pre>const graph = new ePuStaGraph(
+  document.getElementById('graph-js'),
+  'https://epusta.example.org',
+  'oai:example.org:12345',
+  'auto', '2024-12-31',
+  [
+    { label: 'Volltext', tagquery: 'oas:content:counter',          color: '#4e79a7' },
+    { label: 'Abstract', tagquery: 'oas:content:counter_abstract', color: '#f28e2b' }
+  ],
+  'month'
+);
+graph.requestData();</pre>
+  </section>
+
+  <!-- 4. ePuStaGraph über data-Attribute (eine Serie, Auto-Init) -->
+  <section>
+    <h2>ePuStaGraph — data-Attribute (eine Serie)</h2>
+    <div class="chart-box">
+      <div style="height:100%;"
+        data-epustaelementtype="ePuStaGraph"
+        data-epustaproviderurl="https://epusta.example.org"
+        data-epustaidentifier="oai:example.org:67890"
+        data-epustafrom="auto"
+        data-epustauntil="2024-12-31"
+        data-epustatagquery="oas:content:counter"
+        data-epustagranularity="month"></div>
+    </div>
+    <pre>&lt;div
+  data-epustaelementtype="ePuStaGraph"
+  data-epustaproviderurl="https://epusta.example.org"
+  data-epustaidentifier="oai:example.org:67890"
+  data-epustafrom="auto"
+  data-epustauntil="2024-12-31"
+  data-epustatagquery="oas:content:counter"
+  data-epustagranularity="month"
+  style="height:300px;"&gt;&lt;/div&gt;</pre>
+  </section>
+
+  <!--
+    Verdrahtet die JS-API-Beispiele (Abschnitte 1 und 3). Die data-Attribut-Beispiele
+    (2 und 4) initialisiert die Library selbst über ihren DOMContentLoaded-Listener.
+  -->
+  <script type="module">
+    import { ePuStaInline, ePuStaGraph } from '../epusta-elements.js';
+
+    const inline = new ePuStaInline(
+      document.getElementById('inline-js'),
+      'https://epusta.example.org',
+      'oai:example.org:12345',
+      '2022-01-01', '2024-12-31',
+      'oas:content:counter'
+    );
+    inline.requestData();
+
+    const graph = new ePuStaGraph(
+      document.getElementById('graph-js'),
+      'https://epusta.example.org',
+      'oai:example.org:12345',
+      'auto', '2024-12-31',
+      [
+        { label: 'Volltext', tagquery: 'oas:content:counter',          color: '#4e79a7' },
+        { label: 'Abstract', tagquery: 'oas:content:counter_abstract', color: '#f28e2b' }
+      ],
+      'month'
+    );
+    graph.requestData();
+  </script>
+</body>
+</html>
