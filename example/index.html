@@ -9,75 +9,34 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 
   <!--
-    fetch-Mock: ersetzt window.fetch, damit die Demo ohne echten ePuSta-Server
-    läuft. Muss VOR dem Modul-Script stehen (klassisches Script läuft synchron,
-    Module sind deferred), damit der Mock installiert ist, bevor requestData()
-    oder die Auto-Initialisierung der Library feuert.
+    fetch-Interceptor: leitet alle Anfragen an den ePuSta-Server auf lokale
+    Beispiel-JSON-Dateien um, damit die Demo ohne echten Server funktioniert.
+    Muss VOR dem Modul-Script stehen, damit der Interceptor installiert ist,
+    bevor requestData() oder die Auto-Initialisierung der Library feuert.
   -->
   <script>
     (function () {
-      // Deterministischer Pseudo-Zufall, abgeleitet aus einem String-Seed,
-      // damit verschiedene tagqueries (= Serien) unterschiedliche Werte ergeben.
-      function seededRandom(seed) {
-        let h = 2166136261 >>> 0;
-        for (let i = 0; i < seed.length; i++) {
-          h = Math.imul(h ^ seed.charCodeAt(i), 16777619);
-        }
-        return function () {
-          h += 0x6D2B79F5;
-          let t = h;
-          t = Math.imul(t ^ (t >>> 15), t | 1);
-          t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-          return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-        };
+      const realFetch = window.fetch.bind(window);
+
+      // Wählt die passende Beispieldatei anhand von granularity und tagquery.
+      function exampleFile(granularity, tagquery) {
+        if (granularity === "total") return "statistics-counter-total.json";
+        if (tagquery.includes("counter_abstract")) return "statistics-counter-abstract-month.json";
+        return "statistics-counter-month.json";
       }
 
-      function pad(n) { return n.toString().padStart(2, "0"); }
-      function fmt(d) {
-        return d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate());
-      }
+      window.fetch = function (url, options) {
+        let u;
+        try { u = new URL(url, window.location.href); } catch (e) { return realFetch(url, options); }
 
-      // Erzeugt Buckets {date, count} zwischen start und end passend zur Granularität.
-      function buildBuckets(granularity, start, end, rand) {
-        const buckets = [];
-        const cursor = new Date(start);
-        let guard = 0;
-        while (cursor <= end && guard < 400) {
-          guard++;
-          const count = Math.floor(rand() * 90) + 10;
-          buckets.push({ date: fmt(cursor), count });
-          switch (granularity) {
-            case "day":   cursor.setDate(cursor.getDate() + 1); break;
-            case "week":  cursor.setDate(cursor.getDate() + 7); break;
-            case "month": cursor.setMonth(cursor.getMonth() + 1); break;
-            case "year":  cursor.setFullYear(cursor.getFullYear() + 1); break;
-            default:      return buckets;
-          }
-        }
-        return buckets;
-      }
+        // Nur ePuSta-Statistik-Anfragen abfangen
+        if (!u.pathname.endsWith("/statistics")) return realFetch(url, options);
 
-      window.fetch = function (url) {
-        const u = new URL(url, window.location.href);
         const granularity = u.searchParams.get("granularity") || "total";
-        const tagquery = u.searchParams.get("tagquery") || "";
-        const start = new Date(u.searchParams.get("start_date") || "2024-01-01");
-        const end = new Date(u.searchParams.get("end_date") || new Date());
-        const rand = seededRandom(granularity + "|" + tagquery);
+        const tagquery    = u.searchParams.get("tagquery")    || "";
+        const file = exampleFile(granularity, tagquery);
 
-        let data;
-        if (granularity === "total") {
-          data = { statistics: { total: Math.floor(rand() * 9000) + 1000 } };
-        } else {
-          data = { statistics: { [granularity]: buildBuckets(granularity, start, end, rand) } };
-        }
-
-        // Kleiner Delay, damit der Lade-Spinner kurz sichtbar wird.
-        return new Promise(function (resolve) {
-          setTimeout(function () {
-            resolve({ ok: true, status: 200, json: async function () { return data; } });
-          }, 500);
-        });
+        return realFetch(file, { headers: { Accept: "application/json" } });
       };
     })();
   </script>
@@ -102,8 +61,9 @@
   <p class="lead">Demonstriert <code>ePuStaInline</code> und <code>ePuStaGraph</code> jeweils als JavaScript-Klasse und über data-Attribute.</p>
 
   <p class="note">
-    ⚠️ Diese Demo hat <strong>keinen echten ePuSta-Server</strong>. <code>window.fetch</code> ist gemockt
-    und liefert deterministische Beispieldaten, damit man die Klassen ohne Backend live ausprobieren kann.
+    ⚠️ Diese Demo hat <strong>keinen echten ePuSta-Server</strong>. Alle Anfragen werden auf lokale
+    Beispiel-JSON-Dateien umgeleitet (<code>example/statistics-*.json</code>), die mit echten Daten
+    von <code>mir_mods_00079200</code> (Juli 2025 – Juni 2026) befüllt sind.
   </p>
 
   <!-- 1. ePuStaInline als JavaScript-Klasse -->

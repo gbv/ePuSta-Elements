@@ -1,0 +1,16 @@
+{
+    "request": {
+        "identifier": "mir_mods_00079200",
+        "start_date": "2025-07-01",
+        "end_date": "2026-06-30",
+        "granularity": "total",
+        "tagquery": "-epusta:filter:httpMethod -epusta:filter:httpStatus -filter:30sek:counter3 -filter:robot oas:content:counter"
+    },
+    "statistics": {
+        "total": 89,
+        "day": [],
+        "week": [],
+        "month": [],
+        "year": []
+    }
+}
